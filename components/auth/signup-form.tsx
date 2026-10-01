@@ -18,7 +18,6 @@ import * as z from "zod"
 import { toast } from "sonner"
 import { Google } from "../ui/svgs/google"
 import { GithubLight } from "../ui/svgs/githubLight"
-import { useTheme } from "next-themes"
 import { GithubDark } from "../ui/svgs/githubDark"
 
 
@@ -65,9 +64,6 @@ export function SignupForm({
     className,
     ...props
 }: React.ComponentProps<"div">) {
-    const { theme, resolvedTheme } = useTheme()
-
-
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         mode: "onChange",
@@ -113,6 +109,20 @@ export function SignupForm({
 
         toast.success("Account created", {
             description: data?.user?.email ?? "Your account was created successfully.",
+        })
+    }
+
+    const signInWithGithub = async () => {
+        await authClient.signIn.social({
+            provider: "github",
+            callbackURL: "http://localhost:3000/",
+        })
+    }
+
+    const signInWithGoogle = async () => {
+        await authClient.signIn.social({
+            provider: "google",
+            callbackURL: "http://localhost:3000/",
         })
     }
 
@@ -219,22 +229,19 @@ export function SignupForm({
                     </Field>
                     <FieldSeparator>Or continue with</FieldSeparator>
                     <Field orientation="horizontal" className="justify-center">
-                        <Button variant="outline" type="button">
+                        <Button variant="outline" type="button" onClick={signInWithGoogle}>
                             <Google className="mr-2 h-4 w-4" />
                             Sign up with Google
                         </Button>
-                        <Button variant="outline" type="button">
-                            {resolvedTheme === "dark" ? (
-                                <GithubDark className="mr-2 h-4 w-4" />
-                            ) : (
-                                <GithubLight className="mr-2 h-4 w-4" />
-                            )}
+                        <Button variant="outline" type="button" onClick={signInWithGithub}>
+                            <GithubLight className="mr-2 h-4 w-4 dark:hidden" />
+                            <GithubDark className="mr-2 hidden h-4 w-4 dark:block" />
                             Sign up with GitHub
                         </Button>
 
                     </Field>
                     <FieldDescription className="px-6 text-center">
-                        Already have an account? <a href="#">Sign in</a>
+                        Already have an account? <a href="/sign-in">Sign in</a>
                     </FieldDescription>
                 </FieldGroup>
             </form>

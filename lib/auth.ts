@@ -9,7 +9,6 @@ export const authClient = createAuthClient({
         enabled: true,
     },
 
-
     plugins: [
         organizationClient()
         /*  admin() */
