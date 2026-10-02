@@ -11,7 +11,7 @@ import {
     FieldSeparator,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { authClient } from "@/lib/auth"
+import { authClient } from "@/lib/auth-client"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, useForm } from "react-hook-form"
 import * as z from "zod"
@@ -96,6 +96,7 @@ export function SignupForm({
             name: formData.name, // required, The name of the user.
             email: formData.email, // required, The email address of the user.
             password: formData.password, // required, The password of the user. It should be at least 8 characters long and max 128 by default.
+            callbackURL: "/",
             //image: "https://example.com/image.png", // An optional profile image of the user.
             //callbackURL: "https://example.com/callback", // An optional URL to redirect to after the user signs up.
         })
@@ -107,9 +108,6 @@ export function SignupForm({
             return
         }
 
-        toast.success("Account created", {
-            description: data?.user?.email ?? "Your account was created successfully.",
-        })
     }
 
     const signInWithGithub = async () => {

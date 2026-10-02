@@ -6,6 +6,18 @@ const sessionCookieNames = [
 ]
 
 export function proxy(request: NextRequest) {
+    const pathname = request.nextUrl.pathname
+
+    if (
+        pathname.startsWith("/_next/") ||
+        pathname === "/favicon.ico" ||
+        pathname.startsWith("/.well-known/") ||
+        pathname.startsWith("/images/") ||
+        pathname.startsWith("/icons/")
+    ) {
+        return NextResponse.next()
+    }
+
     const hasSessionCookie = sessionCookieNames.some((name) =>
         request.cookies.has(name),
     )
@@ -33,5 +45,10 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-    matcher: ["/", "/dashboard/:path*", "/sign-in", "/sign-up"],
+    matcher: [
+        "/dashboard/:path*",
+        "/onboarding/:path*",
+        "/sign-in",
+        "/sign-up",
+    ],
 }
