@@ -1,3 +1,4 @@
 export const projectsKeys = {
-    getProjects: (organizationId: string) => ["projects", organizationId] as const,
+    getProject: (organizationId: string, projectId: string) => [organizationId, "projects", projectId] as const,
+    getProjects: (organizationId: string) => [organizationId, "projects"] as const,
 };
