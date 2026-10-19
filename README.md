@@ -1,3 +1,51 @@
+# DevFlags Web
+
+The web dashboard for DevFlags, a side project for teams managing feature flags for TypeScript applications.
+This application is intended to provide the human-facing experience around the platform: users should be able to sign in, manage organizations and projects, create environments, and configure feature flags without editing them directly through an API.
+
+## Current status
+This project is a work in progress and is **not production-ready**. Authentication screens, the dashboard shell, and the first project-management flows are in place. Feature flag management, environment configuration, targeting rules, analytics, and the complete integration with the API are still being built.
+
+Progress is intermittent because this is a side project developed alongside school and work. The UI and API contracts may change while the platform takes shape.
+## Technology
+
+- [Next.js](https://nextjs.org/) with the App Router
+- React and TypeScript
+- [React Query](https://tanstack.com/query/latest) for server state
+- [Better Auth](https://www.better-auth.com/) for authentication
+- Tailwind CSS and the local UI components
+
+## Local setup
+From this directory, install dependencies:
+
+```bash
+pnpm install
+```
+Configure the local API URL and authentication settings expected by the application, then start the development server:
+
+```bash
+pnpm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) in a browser. The API must also be running for authenticated data flows such as loading and creating projects.
+
+## Useful commands
+```bash
+pnpm run dev       # Start the development server
+pnpm run build     # Create a production build
+pnpm run start     # Run the production build
+pnpm run lint      # Run ESLint
+```
+## Planned work
+
+- Finish the project, environment, and feature flag workflows
+- Add flag editing, typed values, targeting rules, and rollout controls
+- Connect the dashboard to the SDK evaluation model
+- Improve loading, error, empty, and permission states
+- Add tests and document deployment configuration
+
+## Note
+
+DevFlags Web is currently an evolving prototype. It shows the direction of the management dashboard, but it should not yet be treated as a complete product interface.
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
