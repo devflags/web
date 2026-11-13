@@ -3,6 +3,10 @@ import { z } from "zod"
 import { FeatureFlagType } from "@/lib/api/flags"
 
 export const createFlagSchema = z.object({
+    name: z
+        .string()
+        .min(5, "Name must be at least 5 characters.")
+        .max(32, "Name must be at most 32 characters."),
     key: z
         .string()
         .trim()
@@ -12,8 +16,10 @@ export const createFlagSchema = z.object({
             /^[a-z0-9_-]+$/,
             "Use lowercase letters, numbers, hyphens, and underscores.",
         ),
-    name: z.string().trim().min(1, "Name is required.").max(100),
-    description: z.string().trim().max(500).optional(),
+    description: z
+        .string()
+        .max(500, "Description must be at most 500 characters.")
+        .optional(),
     type: z.enum([
         FeatureFlagType.BOOLEAN,
         FeatureFlagType.STRING,

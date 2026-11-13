@@ -1,18 +1,38 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { X } from "lucide-react"
-import { useForm } from "react-hook-form"
+import { useEffect, useRef } from "react"
+import { Controller, useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 
 import { Button } from "@/components/ui/button"
-import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui/field"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
+import {
+    InputGroup,
+    InputGroupAddon,
+    InputGroupText,
+    InputGroupTextarea,
+} from "@/components/ui/input-group"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 import useCreateFlag from "@/hooks/flags/mutations"
+import { useDebounce } from "@/hooks/use-debounce"
 import { FeatureFlagType } from "@/lib/api/flags"
 import { getErrorMessage } from "@/lib/errors"
-import { createFlagSchema, CreateFlagFormValues, toFlagKey } from "@/lib/validations/flags"
+import { createFlagSchema, toFlagKey, CreateFlagFormValues } from "@/lib/validations/flags"
 
 type CreateFlagDialogProps = {
     projectId: string
@@ -20,44 +40,50 @@ type CreateFlagDialogProps = {
     onOpenChange: (open: boolean) => void
 }
 
-export function CreateFlagDialog({ projectId, open, onOpenChange }: CreateFlagDialogProps) {
-    const { mutate, reset: resetCreateFlag, isPending, isError, error } = useCreateFlag(projectId)
-    const [isKeyEdited, setIsKeyEdited] = useState(false)
+const flagTypes = [
+    { value: FeatureFlagType.BOOLEAN, label: "Boolean", description: "On or off" },
+    { value: FeatureFlagType.STRING, label: "String", description: "Text value" },
+    { value: FeatureFlagType.NUMBER, label: "Number", description: "Numeric value" },
+    { value: FeatureFlagType.JSON, label: "JSON", description: "Structured value" },
+] as const
+
+export function CreateFlagDialog({
+    projectId,
+    open,
+    onOpenChange,
+}: CreateFlagDialogProps) {
+    const createFlag = useCreateFlag(projectId)
     const form = useForm<CreateFlagFormValues>({
         resolver: zodResolver(createFlagSchema),
-        defaultValues: { key: "", name: "", description: "", type: FeatureFlagType.BOOLEAN },
+        defaultValues: {
+            name: "",
+            key: "",
+            description: "",
+            type: FeatureFlagType.BOOLEAN,
+        },
     })
+    const name = useWatch({ control: form.control, name: "name" })
+    const debouncedName = useDebounce(name, 100)
+    const previousOpen = useRef(open)
+    const { reset: resetForm, setValue } = form
+    const { mutate, reset: resetCreateFlag, isPending, isError, error } = createFlag
 
-    const nameField = form.register("name")
-
-    // deps are the stable functions only: the object returned by useMutation is a
-    // new object on every render, which would re-run this effect (and loop) on
-    // the state update that reset() itself triggers
     useEffect(() => {
-        if (open) {
-            form.reset()
+        if (open && !previousOpen.current) {
+            resetForm()
             resetCreateFlag()
-            setIsKeyEdited(false)
         }
-    }, [open, form, resetCreateFlag])
+        previousOpen.current = open
+    }, [open, resetCreateFlag, resetForm])
 
-    function onNameChange(event: React.ChangeEvent<HTMLInputElement>) {
-        nameField.onChange(event)
-        // keep generating the key from the name until the user takes it over
-        if (!isKeyEdited) {
-            form.setValue("key", toFlagKey(event.target.value), { shouldDirty: true })
-        }
-    }
-
-    function onKeyChange(event: React.ChangeEvent<HTMLInputElement>) {
-        setIsKeyEdited(true)
-        form.setValue("key", toFlagKey(event.target.value), { shouldDirty: true })
-    }
+    useEffect(() => {
+        setValue("key", toFlagKey(debouncedName), { shouldValidate: true })
+    }, [debouncedName, setValue])
 
     function close() {
         if (isPending) return
         onOpenChange(false)
-        form.reset()
+        resetForm()
         resetCreateFlag()
     }
 
@@ -68,57 +94,154 @@ export function CreateFlagDialog({ projectId, open, onOpenChange }: CreateFlagDi
         )
     }
 
-    if (!open) return null
-
     return (
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm"
-            role="presentation"
-            onMouseDown={(event) => {
-                if (event.target === event.currentTarget) close()
+        <Dialog
+            open={open}
+            onOpenChange={(nextOpen) => {
+                if (!nextOpen) close()
             }}
         >
-            <div className="w-full max-w-lg rounded-2xl border bg-background p-6 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="create-flag-title">
-                <div className="flex items-start justify-between">
-                    <div>
-                        <h2 id="create-flag-title" className="text-lg font-semibold">Add a flag</h2>
-                        <p className="mt-1 text-sm text-muted-foreground">Control a feature for this project.</p>
-                    </div>
-                    <Button type="button" variant="ghost" size="icon-sm" aria-label="Close" onClick={close}><X /></Button>
-                </div>
+            <DialogContent className="sm:max-w-lg">
+                <DialogHeader>
+                    <DialogTitle>Create a feature flag</DialogTitle>
+                    <DialogDescription>
+                        Define the flag details now. You can configure its values per environment later.
+                    </DialogDescription>
+                </DialogHeader>
 
-                <form className="mt-6 space-y-5" onSubmit={form.handleSubmit(onSubmit)}>
-                    <Field data-invalid={Boolean(form.formState.errors.name)}>
-                        <FieldLabel htmlFor="flag-name">Name</FieldLabel>
-                        <Input id="flag-name" placeholder="New checkout" maxLength={100} autoFocus disabled={isPending} aria-invalid={Boolean(form.formState.errors.name)} {...nameField} onChange={onNameChange} />
-                        <FieldError errors={[form.formState.errors.name]} />
-                    </Field>
-                    <Field data-invalid={Boolean(form.formState.errors.key)}>
-                        <FieldLabel htmlFor="flag-key">Key</FieldLabel>
-                        <Input id="flag-key" placeholder="new-checkout" maxLength={100} disabled={isPending} aria-invalid={Boolean(form.formState.errors.key)} {...form.register("key")} onChange={onKeyChange} />
-                        <FieldDescription>Lowercase letters, numbers, hyphens and underscores. Generated from the name.</FieldDescription>
-                        <FieldError errors={[form.formState.errors.key]} />
-                    </Field>
-                    <Field data-invalid={Boolean(form.formState.errors.type)}>
-                        <FieldLabel htmlFor="flag-type">Type</FieldLabel>
-                        <select id="flag-type" className="h-8 w-full rounded-lg border border-input bg-background px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50" disabled={isPending} {...form.register("type")}>
-                            {Object.values(FeatureFlagType).map((type) => <option key={type} value={type}>{type}</option>)}
-                        </select>
-                        <FieldError errors={[form.formState.errors.type]} />
-                    </Field>
-                    <Field data-invalid={Boolean(form.formState.errors.description)}>
-                        <FieldLabel htmlFor="flag-description">Description</FieldLabel>
-                        <Textarea id="flag-description" placeholder="What does this flag control?" maxLength={500} disabled={isPending} aria-invalid={Boolean(form.formState.errors.description)} {...form.register("description")} />
-                        <FieldError errors={[form.formState.errors.description]} />
-                    </Field>
+                <form
+                    id="form-create-flag"
+                    className="min-w-0"
+                    onSubmit={form.handleSubmit(onSubmit)}
+                >
+                    <FieldGroup>
+                        <Controller
+                            name="name"
+                            control={form.control}
+                            render={({ field, fieldState }) => (
+                                <Field data-invalid={fieldState.invalid}>
+                                    <FieldLabel htmlFor="form-create-flag-name">Name</FieldLabel>
+                                    <Input
+                                        {...field}
+                                        id="form-create-flag-name"
+                                        placeholder="New checkout flow"
+                                        autoComplete="off"
+                                        autoFocus
+                                        maxLength={32}
+                                        disabled={isPending}
+                                        aria-invalid={fieldState.invalid}
+                                    />
+                                    <FieldDescription>
+                                        Use a descriptive name that your team will recognize.
+                                    </FieldDescription>
+                                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                                </Field>
+                            )}
+                        />
 
-                    {isError && <FieldDescription className="text-destructive">{getErrorMessage(error, "Could not create the flag.")}</FieldDescription>}
-                    <div className="flex justify-end gap-2">
-                        <Button type="button" variant="ghost" onClick={close} disabled={isPending}>Cancel</Button>
-                        <Button type="submit" disabled={isPending}>{isPending ? "Creating..." : "Create"}</Button>
-                    </div>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <Controller
+                                name="type"
+                                control={form.control}
+                                render={({ field, fieldState }) => (
+                                    <Field data-invalid={fieldState.invalid}>
+                                        <FieldLabel htmlFor="form-create-flag-type">Type</FieldLabel>
+                                        <Select
+                                            value={field.value}
+                                            onValueChange={(value) => field.onChange(value)}
+                                            disabled={isPending}
+                                        >
+                                            <SelectTrigger
+                                                id="form-create-flag-type"
+                                                className="w-full"
+                                                aria-invalid={fieldState.invalid}
+                                            >
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {flagTypes.map((flagType) => (
+                                                    <SelectItem key={flagType.value} value={flagType.value}>
+                                                        <span>{flagType.label}</span>
+                                                        <span className="text-muted-foreground">
+                                                            {flagType.description}
+                                                        </span>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                                    </Field>
+                                )}
+                            />
+
+                            <Controller
+                                name="key"
+                                control={form.control}
+                                render={({ field, fieldState }) => (
+                                    <Field data-invalid={fieldState.invalid}>
+                                        <FieldLabel htmlFor="form-create-flag-key">Key</FieldLabel>
+                                        <Input
+                                            {...field}
+                                            id="form-create-flag-key"
+                                            readOnly
+                                            tabIndex={-1}
+                                            className="bg-muted/50 font-mono text-sm"
+                                            aria-invalid={fieldState.invalid}
+                                        />
+                                        <FieldDescription>Generated from the name.</FieldDescription>
+                                        {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                                    </Field>
+                                )}
+                            />
+                        </div>
+
+                        <Controller
+                            name="description"
+                            control={form.control}
+                            render={({ field, fieldState }) => (
+                                <Field data-invalid={fieldState.invalid}>
+                                    <FieldLabel htmlFor="form-create-flag-description">
+                                        Description
+                                    </FieldLabel>
+                                    <InputGroup>
+                                        <InputGroupTextarea
+                                            {...field}
+                                            id="form-create-flag-description"
+                                            placeholder="Describe what this flag controls and when to enable it."
+                                            rows={6}
+                                            maxLength={500}
+                                            className="min-h-24 resize-none"
+                                            disabled={isPending}
+                                            aria-invalid={fieldState.invalid}
+                                        />
+                                        <InputGroupAddon align="block-end">
+                                            <InputGroupText className="tabular-nums">
+                                                {field?.value?.length || 0}/500
+                                            </InputGroupText>
+                                        </InputGroupAddon>
+                                    </InputGroup>
+                                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                                </Field>
+                            )}
+                        />
+
+                        {isError && (
+                            <FieldDescription className="text-destructive">
+                                {getErrorMessage(error, "Could not create the feature flag.")}
+                            </FieldDescription>
+                        )}
+                    </FieldGroup>
                 </form>
-            </div>
-        </div>
+
+                <DialogFooter>
+                    <Button type="button" variant="outline" onClick={close} disabled={isPending}>
+                        Cancel
+                    </Button>
+                    <Button type="submit" form="form-create-flag" disabled={isPending}>
+                        {isPending ? "Creating..." : "Create flag"}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     )
 }

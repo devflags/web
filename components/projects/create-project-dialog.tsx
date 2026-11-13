@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { X } from "lucide-react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -30,23 +30,35 @@ export function CreateProjectDialog({
         resolver: zodResolver(createProjectSchema),
         defaultValues: { name: "", description: "" },
     })
+    const { reset: resetForm } = form
+    const {
+        mutate,
+        reset: resetCreateProject,
+        isPending,
+        isError,
+        error,
+    } = createProject
+
+    const prevOpenRef = useRef(open)
 
     useEffect(() => {
-        if (open) {
-            form.reset()
-            createProject.reset()
+        // Only reset when dialog opens (false -> true), not on every render while open
+        if (open && !prevOpenRef.current) {
+            resetForm()
+            resetCreateProject()
         }
-    }, [open, form, createProject])
+        prevOpenRef.current = open
+    }, [open, resetForm, resetCreateProject])
 
     function close() {
-        if (createProject.isPending) return
+        if (isPending) return
         onOpenChange(false)
-        form.reset()
-        createProject.reset()
+        resetForm()
+        resetCreateProject()
     }
 
     function onSubmit(values: CreateProjectFormValues) {
-        createProject.mutate(
+        mutate(
             { ...values, description: values.description || undefined },
             { onSuccess: close },
         )
@@ -90,7 +102,7 @@ export function CreateProjectDialog({
                             placeholder="Vandelay Industries"
                             maxLength={100}
                             autoFocus
-                            disabled={createProject.isPending}
+                            disabled={isPending}
                             aria-invalid={Boolean(form.formState.errors.name)}
                             {...form.register("name")}
                         />
@@ -103,25 +115,25 @@ export function CreateProjectDialog({
                             id="project-description"
                             placeholder="Description about your project..."
                             maxLength={500}
-                            disabled={createProject.isPending}
+                            disabled={isPending}
                             aria-invalid={Boolean(form.formState.errors.description)}
                             {...form.register("description")}
                         />
                         <FieldError errors={[form.formState.errors.description]} />
                     </Field>
 
-                    {createProject.isError && (
+                    {isError && (
                         <FieldDescription className="text-destructive">
-                            {getErrorMessage(createProject.error, "Could not create the project.")}
+                            {getErrorMessage(error, "Could not create the project.")}
                         </FieldDescription>
                     )}
 
                     <div className="flex justify-end gap-2">
-                        <Button type="button" variant="ghost" onClick={close} disabled={createProject.isPending}>
+                        <Button type="button" variant="ghost" onClick={close} disabled={isPending}>
                             Cancel
                         </Button>
-                        <Button type="submit" disabled={createProject.isPending}>
-                            {createProject.isPending ? "Creating..." : "Create"}
+                        <Button type="submit" disabled={isPending}>
+                            {isPending ? "Creating..." : "Create"}
                         </Button>
                     </div>
                 </form>
