@@ -117,6 +117,10 @@ class ApiClient {
             body: body === undefined ? undefined : JSON.stringify(body),
         })
     }
+
+    delete<T>(path: string, options?: Omit<RequestInit, "method" | "body">) {
+        return this.request<T>(path, { ...options, method: "DELETE" })
+    }
 }
 
 export const api = ApiClient.getInstance()

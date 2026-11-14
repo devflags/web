@@ -143,6 +143,12 @@
   }
 }
 
+@layer utilities {
+  .dashboard-content-padding {
+    padding-inline: clamp(1.5rem, calc(35.36vw - 109px), 21.5rem);
+  }
+}
+
 [data-sidebar="menu-button"],
 [data-sidebar="menu-sub-button"],
 [data-sidebar="menu-action"] {

@@ -10,6 +10,7 @@ import { Field, FieldDescription, FieldError, FieldLabel } from "@/components/ui
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import useCreateProject from "@/hooks/projects/mutations"
+import type { Project } from "@/lib/api/projects"
 import { getErrorMessage } from "@/lib/errors"
 import {
     createProjectSchema,
@@ -19,11 +20,13 @@ import {
 type CreateProjectDialogProps = {
     open: boolean
     onOpenChange: (open: boolean) => void
+    onCreated?: (project: Project) => void
 }
 
 export function CreateProjectDialog({
     open,
     onOpenChange,
+    onCreated,
 }: CreateProjectDialogProps) {
     const createProject = useCreateProject()
     const form = useForm<CreateProjectFormValues>({
@@ -60,7 +63,12 @@ export function CreateProjectDialog({
     function onSubmit(values: CreateProjectFormValues) {
         mutate(
             { ...values, description: values.description || undefined },
-            { onSuccess: close },
+            {
+                onSuccess: (project) => {
+                    onCreated?.(project)
+                    close()
+                },
+            },
         )
     }
 

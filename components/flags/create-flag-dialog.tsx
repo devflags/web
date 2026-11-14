@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/select"
 import useCreateFlag, { useUpdateFlag } from "@/hooks/flags/mutations"
 import { useDebounce } from "@/hooks/use-debounce"
-import { FeatureFlagType, type Flag } from "@/lib/api/flags"
+import { FeatureFlagType, type BaseFlag } from "@/lib/api/flags"
 import { getErrorMessage } from "@/lib/errors"
 import { createFlagSchema, toFlagKey, CreateFlagFormValues } from "@/lib/validations/flags"
 
@@ -38,7 +38,7 @@ type CreateFlagDialogProps = {
     projectId: string
     open: boolean
     onOpenChange: (open: boolean) => void
-    flag?: Flag
+    flag?: BaseFlag
 }
 
 const flagTypes = [
