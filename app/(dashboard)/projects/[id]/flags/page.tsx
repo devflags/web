@@ -10,10 +10,14 @@ import { Button } from "@/components/ui/button"
 import { useGetFlags } from "@/hooks/flags/queries"
 import { getErrorMessage } from "@/lib/errors"
 import { BreadcrumbNav } from "@/components/dashboard/breadcrumb-nav"
+import { DataTable } from "@/components/tables/flags/data-table"
+import { columns } from "@/components/tables/flags/columns"
+import { type Flag } from "@/lib/api/flags"
 
 export default function FlagsPage() {
     const params = useParams<{ id: string }>()
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+    const [selectedFlag, setSelectedFlag] = useState<Flag>()
     const { data: flags, isLoading, isError, error } = useGetFlags(params.id)
 
     if (isLoading) return <p>A carregar flags...</p>
@@ -27,19 +31,31 @@ export default function FlagsPage() {
                 <div className="flex items-start gap-3">
                     <BreadcrumbNav />
                 </div>
-                <Button type="button" onClick={() => setIsCreateModalOpen(true)}>
+                <Button
+                    type="button"
+                    onClick={() => {
+                        setSelectedFlag(undefined)
+                        setIsCreateModalOpen(true)
+                    }}
+                >
                     <Plus />
                     Create Flag
                 </Button>
             </header>
-            {!flags || flags.length === 0 ? (
+            {!flags || flags.data.length === 0 ? (
                 <div className="flex min-h-0 flex-1 flex-col pt-6">
                     <EmptyState
                         icon={FlagIcon}
                         title="No flags yet"
                         description="Flags let you ship a feature dark and turn it on later, without redeploying or rolling back."
                         action={
-                            <Button type="button" onClick={() => setIsCreateModalOpen(true)}>
+                            <Button
+                                type="button"
+                                onClick={() => {
+                                    setSelectedFlag(undefined)
+                                    setIsCreateModalOpen(true)
+                                }}
+                            >
                                 <Plus />
                                 Create your first flag
                             </Button>
@@ -47,8 +63,8 @@ export default function FlagsPage() {
                     />
                 </div>
             ) : (
-                <div className="grid gap-4 pt-6 md:grid-cols-2 lg:grid-cols-3">
-                    {flags.map((flag) => (
+                /* <div className="grid gap-4 pt-6 md:grid-cols-2 lg:grid-cols-3">
+                    {flags.data.map((flag) => (
                         <div key={flag.id} className="rounded-lg border bg-card p-4 text-card-foreground shadow-sm">
                             <div className="flex items-start justify-between gap-3">
                                 <h2 className="font-semibold">{flag.name}</h2>
@@ -58,9 +74,28 @@ export default function FlagsPage() {
                             {flag.description && <p className="mt-3 text-sm text-muted-foreground">{flag.description}</p>}
                         </div>
                     ))}
+                </div> */
+
+                <div className="container mx-auto py-10">
+                    <DataTable
+                        columns={columns}
+                        data={flags.data}
+                        onRowClick={setSelectedFlag}
+                    />
                 </div>
             )}
-            <CreateFlagDialog projectId={params.id} open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen} />
+            <CreateFlagDialog
+                projectId={params.id}
+                open={isCreateModalOpen || Boolean(selectedFlag)}
+                flag={selectedFlag}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setIsCreateModalOpen(false)
+                        setSelectedFlag(undefined)
+                    }
+                }}
+            />
+
         </div>
     )
 }

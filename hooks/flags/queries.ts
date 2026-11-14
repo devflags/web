@@ -1,13 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { authClient } from "@/lib/auth-client";
-import { Flag, getFlags } from "@/lib/api/flags";
+import { getFlags, PaginatedFlags } from "@/lib/api/flags";
 import { flagsKeys } from "./keys";
 
 export function useGetFlags(projectId: string) {
     const { data: session } = authClient.useSession()
     const organizationId = session?.session.activeOrganizationId
 
-    return useQuery<Flag[]>({
+    return useQuery<PaginatedFlags>({
         queryKey: flagsKeys.getFlags(organizationId ?? "none", projectId),
         queryFn: () => getFlags(projectId),
         staleTime: 1000 * 60 * 5, // 5 minutes

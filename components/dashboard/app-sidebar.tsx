@@ -7,7 +7,6 @@ import {
     ArrowLeft,
     Box,
     ChevronRight,
-    Folder,
     FolderKanban,
     Home,
     Rocket,
@@ -19,6 +18,9 @@ import {
 import { NavUser } from "@/components/dashboard/nav-user"
 import { TeamSwitcher } from "@/components/dashboard/team-switcher"
 import { useGetProjects } from "@/hooks/projects/queries"
+import { useGetEnvironments } from "@/hooks/environments/queries"
+import { Skeleton } from "@/components/ui/skeleton"
+import { type Environment } from "@/lib/api/environment"
 import {
     Sidebar,
     SidebarContent,
@@ -61,6 +63,7 @@ export function AppSidebar({
     const projectId = projectMatch?.[1]
     const currentProject = projects?.find((project) => project.id === projectId)
     const isProjectContext = Boolean(projectId)
+    const { data: environments, isLoading: isEnvironmentsLoading } = useGetEnvironments(projectId)
 
     return (
         <Sidebar variant="floating" collapsible="icon" {...props}>
@@ -94,11 +97,17 @@ export function AppSidebar({
             <SidebarContent>
                 {isProjectContext ? (
                     <>
-                        <ProjectNavigation
-                            projectId={projectId}
-                            projectName={currentProject?.name ?? "Project"}
-                        />
-                        <ProjectSettings projectId={projectId} />
+                        {projectId && (
+                            <>
+                                <ProjectNavigation
+                                    projectId={projectId}
+                                    projectName={currentProject?.name ?? "Project"}
+                                    environments={environments ?? []}
+                                    isEnvironmentsLoading={isEnvironmentsLoading}
+                                />
+                                <ProjectSettings projectId={projectId} />
+                            </>
+                        )}
                     </>
                 ) : (
                     <GlobalNavigation />
@@ -149,9 +158,13 @@ function GlobalNavigation() {
 function ProjectNavigation({
     projectId,
     projectName,
+    environments,
+    isEnvironmentsLoading,
 }: {
     projectId: string
     projectName: string
+    environments: Environment[]
+    isEnvironmentsLoading: boolean
 }) {
     const basePath = `/projects/${projectId}`
 
@@ -189,16 +202,22 @@ function ProjectNavigation({
                             <ChevronRight className="ml-auto" />
                         </SidebarMenuButton>
                         <SidebarMenuSub>
-                            {["Development", "Staging", "Production"].map((environment) => (
-                                <SidebarMenuSubItem key={environment}>
+                            {isEnvironmentsLoading ? (
+                                <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton>
+                                        <Skeleton className="h-4 w-24" />
+                                    </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                            ) : environments.map((environment) => (
+                                <SidebarMenuSubItem key={environment.id}>
                                     <SidebarMenuSubButton
                                         render={
                                             <Link
-                                                href={`${basePath}/environments/${environment.toLowerCase()}`}
+                                                href={`${basePath}/environments/${environment.id}`}
                                             />
                                         }
                                     >
-                                        <span>{environment}</span>
+                                        <span>{environment.name}</span>
                                     </SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
                             ))}

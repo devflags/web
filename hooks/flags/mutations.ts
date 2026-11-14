@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { authClient } from "@/lib/auth-client";
 import { flagsKeys } from "./keys";
-import { createFlag, CreateFlagPayload } from "@/lib/api/flags";
+import { createFlag, CreateFlagPayload, updateFlag, UpdateFlagPayload } from "@/lib/api/flags";
 import { Flag } from "@/lib/api/flags";
 
 export default function useCreateFlag(projectId: string) {
@@ -15,6 +15,23 @@ export default function useCreateFlag(projectId: string) {
             if (!organizationId) {
                 return;
             }
+
+            await queryClient.invalidateQueries({
+                queryKey: flagsKeys.getFlags(organizationId, projectId),
+            });
+        },
+    });
+}
+
+export function useUpdateFlag(projectId: string, flagId: string) {
+    const queryClient = useQueryClient();
+    const { data: session } = authClient.useSession();
+    const organizationId = session?.session.activeOrganizationId;
+
+    return useMutation<Flag, Error, UpdateFlagPayload>({
+        mutationFn: (payload) => updateFlag(projectId, flagId, payload),
+        onSuccess: async () => {
+            if (!organizationId) return;
 
             await queryClient.invalidateQueries({
                 queryKey: flagsKeys.getFlags(organizationId, projectId),

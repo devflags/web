@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect } from "react"
 import { Controller, useForm, useWatch } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 
@@ -28,9 +28,9 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import useCreateFlag from "@/hooks/flags/mutations"
+import useCreateFlag, { useUpdateFlag } from "@/hooks/flags/mutations"
 import { useDebounce } from "@/hooks/use-debounce"
-import { FeatureFlagType } from "@/lib/api/flags"
+import { FeatureFlagType, type Flag } from "@/lib/api/flags"
 import { getErrorMessage } from "@/lib/errors"
 import { createFlagSchema, toFlagKey, CreateFlagFormValues } from "@/lib/validations/flags"
 
@@ -38,6 +38,7 @@ type CreateFlagDialogProps = {
     projectId: string
     open: boolean
     onOpenChange: (open: boolean) => void
+    flag?: Flag
 }
 
 const flagTypes = [
@@ -51,8 +52,11 @@ export function CreateFlagDialog({
     projectId,
     open,
     onOpenChange,
+    flag,
 }: CreateFlagDialogProps) {
+    const isEditing = Boolean(flag)
     const createFlag = useCreateFlag(projectId)
+    const updateFlag = useUpdateFlag(projectId, flag?.id ?? "")
     const form = useForm<CreateFlagFormValues>({
         resolver: zodResolver(createFlagSchema),
         defaultValues: {
@@ -64,31 +68,48 @@ export function CreateFlagDialog({
     })
     const name = useWatch({ control: form.control, name: "name" })
     const debouncedName = useDebounce(name, 100)
-    const previousOpen = useRef(open)
     const { reset: resetForm, setValue } = form
-    const { mutate, reset: resetCreateFlag, isPending, isError, error } = createFlag
+    const mutation = isEditing ? updateFlag : createFlag
+    const { reset: resetMutation, isPending, isError, error } = mutation
+    const flagName = flag?.name
+    const flagKey = flag?.key
+    const flagDescription = flag?.description
+    const flagType = flag?.type
 
     useEffect(() => {
-        if (open && !previousOpen.current) {
-            resetForm()
-            resetCreateFlag()
+        if (open) {
+            resetForm(isEditing
+                ? {
+                    name: flagName ?? "",
+                    key: flagKey ?? "",
+                    description: flagDescription ?? "",
+                    type: flagType ?? FeatureFlagType.BOOLEAN,
+                }
+                : {
+                    name: "",
+                    key: "",
+                    description: "",
+                    type: FeatureFlagType.BOOLEAN,
+                })
+            resetMutation()
         }
-        previousOpen.current = open
-    }, [open, resetCreateFlag, resetForm])
+    }, [flag?.id, flagDescription, flagKey, flagName, flagType, isEditing, open, resetForm, resetMutation])
 
     useEffect(() => {
-        setValue("key", toFlagKey(debouncedName), { shouldValidate: true })
-    }, [debouncedName, setValue])
+        if (!isEditing) {
+            setValue("key", toFlagKey(debouncedName), { shouldValidate: true })
+        }
+    }, [debouncedName, isEditing, setValue])
 
     function close() {
         if (isPending) return
         onOpenChange(false)
         resetForm()
-        resetCreateFlag()
+        resetMutation()
     }
 
     function onSubmit(values: CreateFlagFormValues) {
-        mutate(
+        mutation.mutate(
             { ...values, description: values.description || undefined },
             { onSuccess: close },
         )
@@ -103,9 +124,11 @@ export function CreateFlagDialog({
         >
             <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
-                    <DialogTitle>Create a feature flag</DialogTitle>
+                    <DialogTitle>{isEditing ? "Edit feature flag" : "Create a feature flag"}</DialogTitle>
                     <DialogDescription>
-                        Define the flag details now. You can configure its values per environment later.
+                        {isEditing
+                            ? "Update the details for this feature flag."
+                            : "Define the flag details now. You can configure its values per environment later."}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -183,12 +206,14 @@ export function CreateFlagDialog({
                                         <Input
                                             {...field}
                                             id="form-create-flag-key"
-                                            readOnly
-                                            tabIndex={-1}
+                                            readOnly={!isEditing}
+                                            tabIndex={isEditing ? undefined : -1}
                                             className="bg-muted/50 font-mono text-sm"
                                             aria-invalid={fieldState.invalid}
                                         />
-                                        <FieldDescription>Generated from the name.</FieldDescription>
+                                        <FieldDescription>
+                                            {isEditing ? "Use lowercase letters, numbers, hyphens, and underscores." : "Generated from the name."}
+                                        </FieldDescription>
                                         {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                                     </Field>
                                 )}
@@ -227,7 +252,7 @@ export function CreateFlagDialog({
 
                         {isError && (
                             <FieldDescription className="text-destructive">
-                                {getErrorMessage(error, "Could not create the feature flag.")}
+                                {getErrorMessage(error, `Could not ${isEditing ? "update" : "create"} the feature flag.`)}
                             </FieldDescription>
                         )}
                     </FieldGroup>
@@ -238,7 +263,7 @@ export function CreateFlagDialog({
                         Cancel
                     </Button>
                     <Button type="submit" form="form-create-flag" disabled={isPending}>
-                        {isPending ? "Creating..." : "Create flag"}
+                        {isPending ? (isEditing ? "Saving..." : "Creating...") : (isEditing ? "Save changes" : "Create flag")}
                     </Button>
                 </DialogFooter>
             </DialogContent>
