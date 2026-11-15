@@ -4,6 +4,7 @@ export type Environment = {
     id: string
     name: string
     slug: string
+    createdAt?: string
 }
 
 export async function getEnvironments(projectId: string): Promise<Environment[]> {

@@ -30,14 +30,14 @@ export function DashboardNavigation({
     const router = useRouter()
     const searchParams = useSearchParams()
     const projectId = pathname.match(/^\/projects\/([^/]+)/)?.[1]
+    const routeEnvironmentId = pathname.match(/^\/projects\/[^/]+\/environments\/([^/]+)/)?.[1]
     const { data: session } = authClient.useSession()
     const activeOrgId = session?.session.activeOrganizationId ?? activeOrganizationId
     const activeOrganization = organizations.find((organization) => organization.id === activeOrgId) ?? organizations[0]
     const { data: projects = [] } = useGetProjects()
     const currentProject = projects.find((project) => project.id === projectId)
     const { data: environments = [], isLoading: environmentsLoading } = useGetEnvironments(projectId)
-    const selectedEnvironmentId = searchParams.get("environment")
-    const selectedEnvironment = environments.find((environment) => environment.id === selectedEnvironmentId) ?? environments[0]
+    const selectedEnvironment = environments.find((environment) => environment.id === routeEnvironmentId)
     const isProjectContext = Boolean(projectId)
     const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false)
     const [isCreateEnvironmentOpen, setIsCreateEnvironmentOpen] = useState(false)
@@ -47,6 +47,21 @@ export function DashboardNavigation({
             void authClient.organization.setActive({ organizationId: organizations[0].id })
         }
     }, [activeOrgId, organizations])
+
+    useEffect(() => {
+        if (!projectId || environmentsLoading || !pathname.match(/^\/projects\/[^/]+\/environments\/[^/]+/)) return
+
+        if (environments.length === 0) {
+            if (routeEnvironmentId !== "new") router.replace(`/projects/${projectId}/environments/new`)
+            return
+        }
+
+        if (routeEnvironmentId === "new") return
+        if (routeEnvironmentId && !environments.some((environment) => environment.id === routeEnvironmentId)) {
+            const suffix = pathname.match(/^\/projects\/[^/]+\/environments\/[^/]+(.*)$/)?.[1] ?? ""
+            router.replace(`/projects/${projectId}/environments/${environments[0].id}${suffix}`)
+        }
+    }, [environments, environmentsLoading, pathname, projectId, routeEnvironmentId, router])
 
     const switchOrganization = async (organizationId: string) => {
         const { error } = await authClient.organization.setActive({ organizationId })
@@ -58,17 +73,22 @@ export function DashboardNavigation({
     const switchProject = (nextProjectId: string) => router.push(`/projects/${nextProjectId}`)
 
     const switchEnvironment = (environmentId: string) => {
+        const routeMatch = pathname.match(/^\/projects\/[^/]+\/environments\/[^/]+(.*)$/)
+        const suffix = routeMatch?.[1] === "/new" ? "" : routeMatch?.[1] ?? ""
         const params = new URLSearchParams(searchParams.toString())
-        params.set("environment", environmentId)
-        router.replace(`${pathname}?${params.toString()}`)
+        params.delete("environment")
+        const query = params.size ? `?${params.toString()}` : ""
+        router.replace(`/projects/${projectId}/environments/${environmentId}${suffix}${query}`)
     }
 
     const tabs = isProjectContext && projectId
-        ? [
-            { label: "Overview", href: `/projects/${projectId}`, icon: Box },
-            { label: "Flags", href: `/projects/${projectId}/flags`, icon: Terminal },
-            { label: "Settings", href: `/projects/${projectId}/settings`, icon: Settings },
-        ]
+        ? selectedEnvironment
+            ? [
+                { label: "Overview", href: `/projects/${projectId}/environments/${selectedEnvironment.id}`, icon: Box },
+                { label: "Flags", href: `/projects/${projectId}/environments/${selectedEnvironment.id}/flags`, icon: Terminal },
+                { label: "Settings", href: `/projects/${projectId}/environments/${selectedEnvironment.id}/settings`, icon: Settings },
+            ]
+            : []
         : [
             { label: "Overview", href: "/", icon: Box },
             { label: "Projects", href: "/projects", icon: FolderKanban },
@@ -191,9 +211,12 @@ export function DashboardNavigation({
                     open={isCreateEnvironmentOpen}
                     onOpenChange={setIsCreateEnvironmentOpen}
                     onCreated={(environment) => {
+                        const routeMatch = pathname.match(/^\/projects\/[^/]+\/environments\/[^/]+(.*)$/)
+                        const suffix = routeMatch?.[1] === "/new" ? "" : routeMatch?.[1] ?? ""
                         const params = new URLSearchParams(searchParams.toString())
-                        params.set("environment", environment.id)
-                        router.replace(`${pathname}?${params.toString()}`)
+                        params.delete("environment")
+                        const query = params.size ? `?${params.toString()}` : ""
+                        router.replace(`/projects/${projectId}/environments/${environment.id}${suffix}${query}`)
                     }}
                 />
             )}
